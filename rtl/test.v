@@ -1,50 +1,68 @@
-module beep_uart (
-    input wire sys_clk, // 时钟信号
-    input wire sys_rst_n, // 低电平复位信号
-    input wire beep_flag, // 蜂鸣器控制信号
-    output reg beep // 蜂鸣器信号
+module data_tx (
+    input  wire sys_clk,
+    input  wire sys_rst_n,
+    output  wire [7:0] pi_data,
+    output reg pi_flag
   );
-  //help
-  reg[15:0] cnt_code;
-  parameter CNT_CODE_MAX = 16'd16666 ;
-  reg[2:0] cnt_num;
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      cnt_code <= 16'd0;
-    else if(cnt_code==CNT_CODE_MAX)
-      cnt_code <= 16'd0;
-    else
-      cnt_code <= cnt_code + 1'b1;
+  reg	[3:0]cnt_num;
+  reg	[25:0]	cnt_1ms;
+  reg	[25:0]	cnt_mayuan;
 
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      beep <= 1'd0;
-    else if(cnt_code<=CNT_CODE_MAX/8&&cnt_num<=1&&beep_flag)
-      beep <= 1'd1;
-    else
-      beep <= 1'd0;
+  wire	[7:0]	data_reg[0:7];
+  assign data_reg[0]=8'h11;
+  assign data_reg[1]=8'h22;
+  assign data_reg[2]=8'h33;
+  assign data_reg[3]=8'h44;
+  assign data_reg[4]=8'h55;
+  assign data_reg[5]=8'h66;
+  assign data_reg[6]=8'h77;
+  assign data_reg[7]=8'h88;
 
-  reg[25:0] cnt_1s;
-  parameter CNT_MAX_1S = 26'd49_999_999 ;
+  /* always@(*)
+          if(sys_rst_n == 1'b0)
+              pi_data <=8'd0;
+  			else
+  			pi_data<=data_reg[cnt_num-1'b1]; */
 
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      cnt_1s <= 26'd0;
-    else if(cnt_1s==CNT_MAX_1S)
-      cnt_1s <= 26'd0;
-    else
-      cnt_1s <= cnt_1s + 1'b1;
+  assign	pi_data=data_reg[cnt_num-1'b1];
+  always@(posedge sys_clk or negedge sys_rst_n)
+    if(sys_rst_n == 1'b0)
+      cnt_1ms <= 26'b0;
+    else	if(cnt_1ms==26'd49_999_999)
+      cnt_1ms <= 26'd0;
+  else
+    cnt_1ms <= cnt_1ms+1'b1;
 
-
-
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      cnt_num <= 3'd0;
-    else if(cnt_num==2)
-      cnt_num <= cnt_num;
-    else if(cnt_1s==CNT_MAX_1S)
-      cnt_num <= cnt_num + 1'b1;
-    else
-      cnt_num <= cnt_num;
-
+  always@(posedge sys_clk or negedge sys_rst_n)
+    if(sys_rst_n == 1'b0)
+      cnt_mayuan <= 26'b0;
+    else	if(cnt_num==4'd8)
+      cnt_mayuan <= 26'd0;
+  else	if(cnt_mayuan==26'd52080)
+    cnt_mayuan <= 26'd0;
+  else
+    cnt_mayuan <= cnt_mayuan+1'b1;
+  always@(posedge sys_clk or negedge sys_rst_n)
+    if(sys_rst_n == 1'b0)
+      pi_flag <= 1'b0;
+    else if(cnt_num==4'd8)
+    begin
+      if(cnt_1ms==26'd49_999_999)
+        pi_flag<=1'b1;
+      else
+        pi_flag<=1'b0;
+    end
+    else	if(cnt_mayuan==26'd52080)
+      pi_flag <= 1'b1;
+  else
+    pi_flag <= 1'b0;
+  always@(posedge sys_clk or negedge sys_rst_n)
+    if(sys_rst_n == 1'b0)
+      cnt_num <= 4'd0;
+    else	if(cnt_num==8&&pi_flag==1)
+      cnt_num <= 4'd1;
+  else	if(pi_flag==1)
+    cnt_num <= cnt_num+1'b1;
+  else
+    cnt_num <= cnt_num;
 endmodule
