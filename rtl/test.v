@@ -1,75 +1,108 @@
-`timescale  1ns/1ns
-module  hc595_ctrl
+
+module  seg_static
   (
     input   wire            sys_clk     ,   //系统时钟，频率50MHz
-    input   wire            sys_rst_n   ,   //复位信号，低有效
-    input   wire    [5:0]   sel         ,   //数码管位选信号
-    input   wire    [7:0]   seg         ,   //数码管段选信号
-
-    output  reg             stcp        ,   //数据存储器时钟
-    output  reg             shcp        ,   //移位寄存器时钟
-    output  reg             ds          ,   //串行数据输入
-    output  wire            oe              //使能信号，低有效
+    input   wire            sys_rst_n   ,   //复位信号，低电平有效
+    output  reg     [5:0]   sel         ,   //数码管位选信号
+    output  reg     [7:0]   seg             //数码管段选信号
   );
-
-  wire [13:0]   hc595_data;
-  //连续赋值
-  assign oe=~sys_rst_n;
-  assign hc595_data = {seg[0],seg[1],seg[2],seg[3],seg[4],seg[5],seg[6],seg[7],sel};
-  //4计数器
-  reg [1:0]   cnt_4;
+  //十六进制数显示编码
+  parameter   SEG_0 = 8'b1100_0000,   SEG_1 = 8'b1111_1001,
+              SEG_2 = 8'b1010_0100,   SEG_3 = 8'b1011_0000,
+              SEG_4 = 8'b1001_1001,   SEG_5 = 8'b1001_0010,
+              SEG_6 = 8'b1000_0010,   SEG_7 = 8'b1111_1000,
+              SEG_8 = 8'b1000_0000,   SEG_9 = 8'b1001_0000,
+              SEG_A = 8'b1000_1000,   SEG_B = 8'b1000_0011,
+              SEG_C = 8'b1100_0110,   SEG_D = 8'b1010_0001,
+              SEG_E = 8'b1000_0110,   SEG_F = 8'b1000_1110;
+  parameter   IDLE  = 8'b1111_1111;   //不显示状态9
+  //1s 计数器
+  parameter  cnt_1s_max=26'd49_999_999;
+  reg [25:0]  cnt_1s;
   always @(posedge sys_clk or negedge sys_rst_n)
   begin
     if (~sys_rst_n)
-      cnt_4 <= 2'b00;
-    else if(cnt_4 == 2'b11)
-      cnt_4 <= 2'b00;
+      cnt_1s <= 26'b0;
+    else if(cnt_1s == cnt_1s_max)
+      cnt_1s <= 26'b0;
     else
-      cnt_4 <= cnt_4 + 1;
+      cnt_1s <= cnt_1s + 1;
   end
-  //4分频信号 shcp
+  //数码管位选信号
+  always @(posedge sys_clk or negedge sys_rst_n)
+  begin
+    if (!sys_rst_n)
+      sel <= 6'b000000;
+    else
+      sel <= 6'b111111;
+  end
+  //1s计数标志位
+  reg         flag_1s;
   always @(posedge sys_clk or negedge sys_rst_n)
   begin
     if (~sys_rst_n)
-      shcp <= 1'b0;
-    else if(cnt_4==2'b11||cnt_4==2'b10)
-      shcp <= 1'b1;
+      flag_1s <= 1'b0;
+    else if(cnt_1s == cnt_1s_max)
+      flag_1s <=1'b1;
     else
-      shcp <= 1'b0;
+      flag_1s <=1'b0;
   end
-  reg [3:0]   cnt_data;
-  //stcp信号
+  //0~F显示技术
+  reg [3:0]   cnt_num;
   always @(posedge sys_clk or negedge sys_rst_n)
   begin
     if (~sys_rst_n)
-      stcp <= 1'b0;
-    else if(cnt_4==2'b11&&cnt_data==4'd13)
-      stcp <= 1'b1;
+      cnt_num <= 4'b0000;
+    else if(flag_1s)
+      cnt_num <= cnt_num + 1;
     else
-      stcp <= 1'b0;
+      cnt_num <= cnt_num;
   end
-  //传输数据位数计数器
+  //数码管段选信号
   always @(posedge sys_clk or negedge sys_rst_n)
   begin
     if (~sys_rst_n)
-      cnt_data <= 4'b0000;
-    else if(cnt_4==2'b11&&cnt_data==4'd13)
-      cnt_data <= 4'b0000;
-    else if(cnt_4==2'b11)
-      cnt_data <= cnt_data + 1;
+    begin
+      seg<=8'b1111_1111;
+    end
     else
-      cnt_data <= cnt_data;
+    begin
+      case(cnt_num)
+        4'd0:
+          seg<=SEG_0;
+        4'd1:
+          seg<=SEG_1;
+        4'd2:
+          seg<=SEG_2;
+        4'd3:
+          seg<=SEG_3;
+        4'd4:
+          seg<=SEG_4;
+        4'd5:
+          seg<=SEG_5;
+        4'd6:
+          seg<=SEG_6;
+        4'd7:
+          seg<=SEG_7;
+        4'd8:
+          seg<=SEG_8;
+        4'd9:
+          seg<=SEG_9;
+        4'd10:
+          seg<=SEG_A;
+        4'd11:
+          seg<=SEG_B;
+        4'd12:
+          seg<=SEG_C;
+        4'd13:
+          seg<=SEG_D;
+        4'd14:
+          seg<=SEG_E;
+        4'd15:
+          seg<=SEG_F;
+        default:
+          seg<=8'b1111_1111;
+      endcase
+    end
   end
-  //ds信号
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (~sys_rst_n)
-      ds <= 1'b0;
-    else if(cnt_4==2'b00)
-      ds <= hc595_data[cnt_data];
-    else
-      ds <= ds;
-  end
-
 endmodule
-
