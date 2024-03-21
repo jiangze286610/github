@@ -1,74 +1,37 @@
 
-module  hc595_ctrl
+module  seg_top
   (
     input   wire            sys_clk     ,   //系统时钟，频率50MHz
     input   wire            sys_rst_n   ,   //复位信号，低有效
-    input   wire    [5:0]   sel         ,   //数码管位选信号
-    input   wire    [7:0]   seg         ,   //数码管段选信号
-
-    output  reg             stcp        ,   //数据存储器时钟
-    output  reg             shcp        ,   //移位寄存器时钟
-    output  reg             ds          ,   //串行数据输入
-    output  wire            oe              //使能信号，低有效
+    output  wire            stcp        ,   //输出数据存储寄时钟
+    output  wire            shcp        ,   //移位寄存器的时钟输入
+    output  wire            ds          ,   //串行数据输入
+    output  wire            oe              //输出使能信号
   );
 
-  wire [13:0]   hc595_data;
-  //连续赋值
-  assign hc595_data = {seg[0],seg[1],seg[2],seg[3],seg[4],seg[5],seg[6],seg[7],sel};
-  //4计数器
-  reg [1:0]   cnt_4;
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (!sys_rst_n)
-      cnt_4 <= 2'b00;
-    else if(cnt_4 == 2'b11)
-      cnt_4 <= 2'b00;
-    else
-      cnt_4 <= cnt_4 + 1;
-  end
-  //4分频信号 shcp
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (!sys_rst_n)
-      shcp <= 1'b0;
-    else if(cnt_4==2'b01&&cnt_4==2'b10)
-      shcp <= 1'b1;
-    else
-      shcp <= 1'b0;
-  end
-  reg [3:0]   cnt_data;
-  //stcp信号
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (!sys_rst_n)
-      stcp <= 1'b0;
-    else if(cnt_4==2'b11&&cnt_data==4'd13)
-      stcp <= 1'b1;
-    else
-      stcp <= 1'b0;
-  end
-  //传输数据计数器
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (!sys_rst_n)
-      cnt_data <= 4'b0000;
-    else if(cnt_4==2'b11)
-      cnt_data <= cnt_data + 1;
-    else if(cnt_4==2'b11&&cnt_data==4'd13)
-      cnt_data <= 4'b0000;
-    else
-      cnt_data <= cnt_data;
-  end
-  //ds信号
-  always @(posedge sys_clk or negedge sys_rst_n)
-  begin
-    if (!sys_rst_n)
-      ds <= 1'b0;
-    else if(cnt_4==2'b01)
-      ds <= hc595_data[cnt_data];
-    else
-      ds <= ds;
-  end
+  wire    [5:0]   sel;
+  wire    [7:0]   seg;
+
+  seg_static  seg_static
+              (
+                .sys_clk     (sys_clk   ),   //系统时钟，频率50MHz
+                .sys_rst_n   (sys_rst_n ),   //复位信号，低电平有效
+
+                .sel         (sel       ),   //数码管位选信号
+                .seg         (seg       )    //数码管段选信号
+              );
+
+  hc595_ctrl  hc595_ctrl
+              (
+                .sys_clk     (sys_clk  ),   //系统时钟，频率50MHz
+                .sys_rst_n   (sys_rst_n),   //复位信号，低有效
+                .sel         (sel      ),   //数码管位选信号
+                .seg         (seg      ),   //数码管段选信号
+
+                .stcp        (stcp     ),   //输出数据存储寄时钟
+                .shcp        (shcp     ),   //移位寄存器的时钟输入
+                .ds          (ds       ),   //串行数据输入
+                .oe          (oe       )    //输出使能信号
+              );
 
 endmodule
-
