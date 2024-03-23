@@ -1,36 +1,226 @@
-
-module  seg_top
-  (
-    input   wire            sys_clk     ,   //系统时钟，频率50MHz
-    input   wire            sys_rst_n   ,   //复位信号，低有效
-    output  wire            stcp        ,   //输出数据存储寄时钟
-    output  wire            shcp        ,   //移位寄存器的时钟输入
-    output  wire            ds          ,   //串行数据输入
-    output  wire            oe              //输出使能信号
+module data_compare (
+    input wire sys_clk,
+    input wire sys_rst_n,
+    input wire [7:0] po_data,
+    input wire po_flag,
+    output reg [19:0]data
   );
+  parameter data1 ="$GNRMC";
+  parameter data2 ="*";
+  parameter data3 ="$";
+  reg[47:0] data_reg;
+  reg[47:0] data_reg1;
+  reg [7:0]data_jy;
+  reg flag1; //时间采集标志位
+  reg flag2; //校验标志位
+  reg flag3; //校验正确标志位
+  reg [2:0] cnt_7;
+  reg[15:0] data_jysj;
+  reg [1:0] cnt_2;
+  reg [3:0] data_jysj1;
+  reg [3:0] data_jysj2;
+  wire [7:0] data_jysj3;
+  always@(*)
+  begin
+    if (!sys_rst_n)
+      data_jysj1 = 16'd0;
+    else
+    begin
+      case(data_jysj[15:8])
+        8'd48 :
+          data_jysj1 = 4'h0;
+        8'd49 :
+          data_jysj1 = 4'h1;
+        8'd50 :
+          data_jysj1 = 4'h2;
+        8'd51 :
+          data_jysj1 = 4'h3;
+        8'd52 :
+          data_jysj1 = 4'h4;
+        8'd53 :
+          data_jysj1 = 4'h5;
+        8'd54 :
+          data_jysj1 = 4'h6;
+        8'd55 :
+          data_jysj1 = 4'h7;
+        8'd56 :
+          data_jysj1 = 4'h8;
+        8'd57 :
+          data_jysj1 = 4'h9;
+        8'd65 :
+          data_jysj1 = 4'hA;
+        8'd66 :
+          data_jysj1 = 4'hB;
+        8'd67 :
+          data_jysj1 = 4'hC;
+        8'd68 :
+          data_jysj1 = 4'hD;
+        8'd69 :
+          data_jysj1 = 4'hE;
+        8'd70 :
+          data_jysj1 = 4'hF;
+        default :
+          data_jysj1 =data_jysj1;
+      endcase
+    end
+  end
 
-  wire    [5:0]   sel;
-  wire    [7:0]   seg;
 
-  seg_static  seg_static
-              (
-                .sys_clk     (sys_clk   ),   //系统时钟，频率50MHz
-                .sys_rst_n   (sys_rst_n ),   //复位信号，低电平有效
-                .sel         (sel       ),   //数码管位选信号
-                .seg         (seg       )    //数码管段选信号
-              );
+  always@(*)
+  begin
+    if (!sys_rst_n)
+      data_jysj2 = 16'd0;
+    else
+    begin
+      case(data_jysj[7:0])
+        8'd48 :
+          data_jysj2 = 4'h0;
+        8'd49 :
+          data_jysj2 = 4'h1;
+        8'd50 :
+          data_jysj2 = 4'h2;
+        8'd51 :
+          data_jysj2 = 4'h3;
+        8'd52 :
+          data_jysj2 = 4'h4;
+        8'd53 :
+          data_jysj2 = 4'h5;
+        8'd54 :
+          data_jysj2 = 4'h6;
+        8'd55 :
+          data_jysj2 = 4'h7;
+        8'd56 :
+          data_jysj2 = 4'h8;
+        8'd57 :
+          data_jysj2 = 4'h9;
+        8'd65 :
+          data_jysj2 = 4'hA;
+        8'd66 :
+          data_jysj2 = 4'hB;
+        8'd67 :
+          data_jysj2 = 4'hC;
+        8'd68 :
+          data_jysj2 = 4'hD;
+        8'd69 :
+          data_jysj2 = 4'hE;
+        8'd70 :
+          data_jysj2 = 4'hF;
+        default :
+          data_jysj2 =data_jysj2;
+      endcase
+    end
+  end
 
-  hc595_ctrl  hc595_ctrl
-              (
-                .sys_clk     (sys_clk  ),   //系统时钟，频率50MHz
-                .sys_rst_n   (sys_rst_n),   //复位信号，低有效
-                .sel         (sel      ),   //数码管位选信号
-                .seg         (seg      ),   //数码管段选信号
+  assign data_jysj3={data_jysj1,data_jysj2};
 
-                .stcp        (stcp     ),   //输出数据存储寄时钟
-                .shcp        (shcp     ),   //移位寄存器的时钟输入
-                .ds          (ds       ),   //串行数据输入
-                .oe          (oe       )    //输出使能信号
-              );
-
+  //校验数据存储
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_jysj <= 16'd0;
+    else if (po_flag&&cnt_2<=1)
+      data_jysj<={data_jysj[7:0],po_data};
+    else
+      data_reg<=data_reg;
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      cnt_2 <= 2'd3;
+    else if (po_data==data2&&po_flag)
+      cnt_2 <= 3'd0;
+    else if (cnt_2==2)
+      cnt_2 <= cnt_2;
+    else if (po_flag)
+      cnt_2 <= cnt_2+1;
+    else
+      cnt_2 <= cnt_2;
+  //数据移位储存
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_reg <= 48'd0;
+    else if (po_flag)
+      data_reg<={data_reg[39:0],po_data};
+    else
+      data_reg<=data_reg;
+  //开头正确标志位
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag1 <= 1'd0;
+    else if(cnt_7==3'd7)
+      flag1 <= 1'd0;
+    else if (data_reg==data1)
+      flag1 <= 1'd1;
+    else
+      flag1 <= flag1;
+  //7计数器
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      cnt_7 <= 3'd0;
+    else if (cnt_7==3'd7)
+      cnt_7 <= 3'd0;
+    else if (flag1&&po_flag)
+      cnt_7 <= cnt_7+1;
+    else
+      cnt_7 <= cnt_7;
+  //data_reg1 时间数据存储寄存器
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_reg1 <= 48'd0;
+    else if (cnt_7==3'd7)
+      data_reg1<=data_reg;
+    else
+      data_reg1<=data_reg1;
+  //时间数据输出
+  wire [7:0] shi_shiwei;
+  wire [7:0] shi_gewei;
+  wire [7:0] fen_shiwei;
+  wire [7:0] fen_gewei;
+  wire [7:0] miao_shiwei;
+  wire [7:0] miao_gewei;
+  assign shi_shiwei = data_reg1[47:40]-48;
+  assign shi_gewei = data_reg1[39:32]-48;
+  assign fen_shiwei = data_reg1[31:24]-48;
+  assign fen_gewei = data_reg1[23:16]-48;
+  assign miao_shiwei = data_reg1[15:8]-48;
+  assign miao_gewei = data_reg1[7:0]-48;
+  // assign data=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
+  //BBC校验
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag2 <= 1'd0;
+    else if (po_data==data3&&po_flag)
+      flag2 <= 1'd1;
+    else if (po_data==data2&&po_flag)
+      flag2 <= 1'd0;
+    else
+      flag2 <= flag2;
+  //异或校验
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_jy <= 8'd0;
+    else if(po_data==data3)
+      data_jy <= 8'd0;
+    else if (po_data==data2)
+      data_jy <= data_jy;
+    else if (flag2&&po_flag)
+      data_jy <= data_jy^po_data;
+    else
+      data_jy <= data_jy;
+  //校验结果
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag3 <= 1'd0;
+    else if(po_data==data3&&po_flag)
+      flag3 <= 1'd0;
+    else if (data_jy==data_jysj3)
+      flag3 <= 1'd1;
+    else
+      flag3 <= flag3;
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data <= 20'd0;
+    else if(flag3)
+      data <=shi_shiwei*100000+(shi_gewei)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
+  /*  else if(~flag3)
+     data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1; */
+    else
+      data <= data;
 endmodule
