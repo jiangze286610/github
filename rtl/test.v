@@ -5,21 +5,111 @@ module data_compare (
     input wire po_flag,
     output reg [19:0]data
   );
-  parameter data1 ="$GNRMC";
+  parameter data1 ="$GNRMC";//正确数据开头
   parameter data2 ="*";
   parameter data3 ="$";
-  reg[47:0] data_reg;
-  reg[47:0] data_reg1;
-  reg [7:0]data_jy;
+  reg[47:0] data_reg;//进入存储数据
+  reg[47:0] data_reg1;//时间信息存储数据
+  reg [7:0]data_jy;//异或校验十六进制结果
+  reg[15:0] data_jysj;//GPS校验数据存储ASKII码
+  reg [3:0] data_jysj1;//高位ASKII码转换为十六进制
+  reg [3:0] data_jysj2;//低位ASKII码转换为十六进制
+  wire [7:0] data_jysj3;//ASKII码转换为8位十六进制
   reg flag1; //时间采集标志位
-  reg flag2; //校验标志位
-  reg flag3; //校验正确标志位
-  reg [2:0] cnt_7;
-  reg[15:0] data_jysj;
-  reg [1:0] cnt_2;
-  reg [3:0] data_jysj1;
-  reg [3:0] data_jysj2;
-  wire [7:0] data_jysj3;
+  reg flag2; //异或校验开始结束标志位
+  reg flag3; //异或校验正确标志位
+  reg flag4; //校验正确标志位
+  reg [2:0] cnt_7;//存储时间计数器
+  reg [1:0] cnt_2;//GPS存储校验ASKII码计数器
+  //进入数据移位储存
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_reg <= 48'd0;
+    else if (po_flag)
+      data_reg<={data_reg[39:0],po_data};
+    else
+      data_reg<=data_reg;
+  //开头正确存储时间标志位
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag1 <= 1'd0;
+    else if(cnt_7==3'd7)
+      flag1 <= 1'd0;
+    else if (data_reg==data1)
+      flag1 <= 1'd1;
+    else
+      flag1 <= flag1;
+  //存储时间计数器
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      cnt_7 <= 3'd0;
+    else if (cnt_7==3'd7)
+      cnt_7 <= 3'd0;
+    else if (flag1&&po_flag)
+      cnt_7 <= cnt_7+1;
+    else
+      cnt_7 <= cnt_7;
+  //data_reg1 时间数据存储寄存器
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_reg1 <= 48'd0;
+    else if (cnt_7==3'd7)
+      data_reg1<=data_reg;
+    else
+      data_reg1<=data_reg1;
+  //异或校验开始结束标志位
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag2 <= 1'd0;
+    else if (po_data==data3&&po_flag)
+      flag2 <= 1'd1;
+    else if (po_data==data2&&po_flag)
+      flag2 <= 1'd0;
+    else
+      flag2 <= flag2;
+  //异或校验正确标志位
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag3 <= 1'd0;
+    else if(po_data==data3)
+      flag3 <= 1'd0;
+    else if (data_jy==data_jysj3)
+      flag3 <= 1'd1;
+    else
+      flag3 <= 1'd0;
+  //异或校验十六进制结果
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_jy <= 8'd0;
+    else if(po_data==data3)
+      data_jy <= 8'd0;
+    else if (po_data==data2)
+      data_jy <= data_jy;
+    else if (flag2&&po_flag)
+      data_jy <= data_jy^po_data;
+    else
+      data_jy <= data_jy;
+  //GPS存储校验ASKII码计数器
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      cnt_2 <= 2'd3;
+    else if (po_data==data2&&po_flag)
+      cnt_2 <= 3'd0;
+    else if (cnt_2==2)
+      cnt_2 <= cnt_2;
+    else if (po_flag)
+      cnt_2 <= cnt_2+1;
+    else
+      cnt_2 <= cnt_2;
+  //GPS校验数据存储ASKII码
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      data_jysj <= 16'd0;
+    else if (po_flag&&cnt_2<=1)
+      data_jysj<={data_jysj[7:0],po_data};
+    else
+      data_jysj<=data_jysj;
+  //ASKII码转换为十六进制
   always@(*)
   begin
     if (!sys_rst_n)
@@ -108,48 +198,7 @@ module data_compare (
       endcase
     end
   end
-
   assign data_jysj3={data_jysj1,data_jysj2};
-
-  //校验数据存储
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      data_jysj <= 16'd0;
-    else if (po_flag&&cnt_2<=1)
-      data_jysj<={data_jysj[7:0],po_data};
-    else
-      data_jysj<=data_jysj;
-
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      cnt_2 <= 2'd3;
-    else if (po_data==data2&&po_flag)
-      cnt_2 <= 3'd0;
-    else if (cnt_2==2)
-      cnt_2 <= cnt_2;
-    else if (po_flag)
-      cnt_2 <= cnt_2+1;
-    else
-      cnt_2 <= cnt_2;
-  //数据移位储存
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      data_reg <= 48'd0;
-    else if (po_flag)
-      data_reg<={data_reg[39:0],po_data};
-    else
-      data_reg<=data_reg;
-  //开头正确存储时间标志位
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      flag1 <= 1'd0;
-    else if(cnt_7==3'd7)
-      flag1 <= 1'd0;
-    else if (data_reg==data1)
-      flag1 <= 1'd1;
-    else
-      flag1 <= flag1;
-  reg flag4;
   //校验正确标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -160,25 +209,7 @@ module data_compare (
       flag4<= 1'd1;
     else
       flag4<= flag4;
-  //7计数器
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      cnt_7 <= 3'd0;
-    else if (cnt_7==3'd7)
-      cnt_7 <= 3'd0;
-    else if (flag1&&po_flag)
-      cnt_7 <= cnt_7+1;
-    else
-      cnt_7 <= cnt_7;
-  //data_reg1 时间数据存储寄存器
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      data_reg1 <= 48'd0;
-    else if (cnt_7==3'd7)
-      data_reg1<=data_reg;
-    else
-      data_reg1<=data_reg1;
-  //时间数据输出
+  //时间数据输出 每位 ASKII码转换为十进制
   reg [7:0] shi_shiwei;
   reg [7:0] shi_gewei;
   reg [7:0] fen_shiwei;
@@ -213,38 +244,7 @@ module data_compare (
       miao_shiwei<=miao_shiwei;
       miao_gewei<=miao_gewei;
     end
-  //BBC校验
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      flag2 <= 1'd0;
-    else if (po_data==data3&&po_flag)
-      flag2 <= 1'd1;
-    else if (po_data==data2&&po_flag)
-      flag2 <= 1'd0;
-    else
-      flag2 <= flag2;
-  //异或校验
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      data_jy <= 8'd0;
-    else if(po_data==data3)
-      data_jy <= 8'd0;
-    else if (po_data==data2)
-      data_jy <= data_jy;
-    else if (flag2&&po_flag)
-      data_jy <= data_jy^po_data;
-    else
-      data_jy <= data_jy;
-  //校验结果
-  always @(posedge sys_clk or negedge sys_rst_n)
-    if (!sys_rst_n)
-      flag3 <= 1'd0;
-    else if(po_data==data3)
-      flag3 <= 1'd0;
-    else if (data_jy==data_jysj3)
-      flag3 <= 1'd1;
-    else
-      flag3 <= 1'd0;
+  //时间数据输出
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       data <= 20'd0;
