@@ -140,7 +140,7 @@ module data_compare (
       data_reg<={data_reg[39:0],po_data};
     else
       data_reg<=data_reg;
-  //开头正确标志位
+  //开头正确存储时间标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       flag1 <= 1'd0;
@@ -150,6 +150,17 @@ module data_compare (
       flag1 <= 1'd1;
     else
       flag1 <= flag1;
+  reg flag4;
+  //校验正确标志位
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+      flag4<= 1'd0;
+    else if (po_data==data3)
+      flag4<= 1'd0;
+    else if (data_reg==data1)
+      flag4<= 1'd1;
+    else
+      flag4<= flag4;
   //7计数器
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -169,18 +180,48 @@ module data_compare (
     else
       data_reg1<=data_reg1;
   //时间数据输出
-  wire [7:0] shi_shiwei;
-  wire [7:0] shi_gewei;
-  wire [7:0] fen_shiwei;
-  wire [7:0] fen_gewei;
-  wire [7:0] miao_shiwei;
-  wire [7:0] miao_gewei;
-  assign shi_shiwei = data_reg1[47:40]-48;
-  assign shi_gewei = data_reg1[39:32]-48;
-  assign fen_shiwei = data_reg1[31:24]-48;
-  assign fen_gewei = data_reg1[23:16]-48;
-  assign miao_shiwei = data_reg1[15:8]-48;
-  assign miao_gewei = data_reg1[7:0]-48;
+
+  reg [7:0] shi_shiwei;
+  reg [7:0] shi_gewei;
+  reg [7:0] fen_shiwei;
+  reg [7:0] fen_gewei;
+  reg [7:0] miao_shiwei;
+  reg [7:0] miao_gewei;
+
+  always @(posedge sys_clk or negedge sys_rst_n)
+    if (!sys_rst_n)
+    begin
+      shi_shiwei<=8'd0;
+      shi_gewei<=8'd0;
+      fen_shiwei<=8'd0;
+      fen_gewei<=8'd0;
+      miao_shiwei<=8'd0;
+      miao_gewei<=8'd0;
+    end
+    else if(flag3&&flag4)
+    begin
+      shi_shiwei = data_reg1[47:40]-48;
+      shi_gewei = data_reg1[39:32]-48;
+      fen_shiwei = data_reg1[31:24]-48;
+      fen_gewei = data_reg1[23:16]-48;
+      miao_shiwei = data_reg1[15:8]-48;
+      miao_gewei = data_reg1[7:0]-48;
+    end
+    else
+    begin
+      shi_shiwei<=shi_shiwei;
+      shi_gewei<=shi_gewei;
+      fen_shiwei<=fen_shiwei;
+      fen_gewei<=fen_gewei;
+      miao_shiwei<=miao_shiwei;
+      miao_gewei<=miao_gewei;
+    end
+  /*   assign shi_shiwei = data_reg1[47:40]-48;
+    assign shi_gewei = data_reg1[39:32]-48;
+    assign fen_shiwei = data_reg1[31:24]-48;
+    assign fen_gewei = data_reg1[23:16]-48;
+    assign miao_shiwei = data_reg1[15:8]-48;
+    assign miao_gewei = data_reg1[7:0]-48; */
   // assign data=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
   //BBC校验
   always @(posedge sys_clk or negedge sys_rst_n)
@@ -208,19 +249,19 @@ module data_compare (
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       flag3 <= 1'd0;
-    else if(po_data==data3&&po_flag)
+    else if(po_data==data3)
       flag3 <= 1'd0;
     else if (data_jy==data_jysj3)
       flag3 <= 1'd1;
     else
-      flag3 <= flag3;
+      flag3 <= 1'd0;
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       data <= 20'd0;
-    else if(flag3)
-      data <=shi_shiwei*100000+(shi_gewei)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
+  /*  else if(flag3&&flag4)
+     data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1; */
   /*  else if(~flag3)
      data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1; */
     else
-      data <= data;
+      data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
 endmodule
