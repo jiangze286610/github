@@ -64,8 +64,6 @@ module data_compare (
       endcase
     end
   end
-
-
   always@(*)
   begin
     if (!sys_rst_n)
@@ -120,7 +118,8 @@ module data_compare (
     else if (po_flag&&cnt_2<=1)
       data_jysj<={data_jysj[7:0],po_data};
     else
-      data_reg<=data_reg;
+      data_jysj<=data_jysj;
+
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       cnt_2 <= 2'd3;
@@ -180,14 +179,12 @@ module data_compare (
     else
       data_reg1<=data_reg1;
   //时间数据输出
-
   reg [7:0] shi_shiwei;
   reg [7:0] shi_gewei;
   reg [7:0] fen_shiwei;
   reg [7:0] fen_gewei;
   reg [7:0] miao_shiwei;
   reg [7:0] miao_gewei;
-
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
     begin
@@ -216,13 +213,6 @@ module data_compare (
       miao_shiwei<=miao_shiwei;
       miao_gewei<=miao_gewei;
     end
-  /*   assign shi_shiwei = data_reg1[47:40]-48;
-    assign shi_gewei = data_reg1[39:32]-48;
-    assign fen_shiwei = data_reg1[31:24]-48;
-    assign fen_gewei = data_reg1[23:16]-48;
-    assign miao_shiwei = data_reg1[15:8]-48;
-    assign miao_gewei = data_reg1[7:0]-48; */
-  // assign data=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
   //BBC校验
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -258,10 +248,10 @@ module data_compare (
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       data <= 20'd0;
-  /*  else if(flag3&&flag4)
-     data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1; */
-  /*  else if(~flag3)
-     data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1; */
-    else
+    else if (shi_shiwei>=1&&shi_gewei>=6)
+      data <=(shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1)-20'd240000;
+    else if(shi_gewei<16)
       data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
+    else
+      data<=data;
 endmodule
