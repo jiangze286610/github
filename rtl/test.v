@@ -18,7 +18,7 @@ module data_compare (
   reg flag1; //时间采集标志位
   reg flag2; //异或校验开始结束标志位
   reg flag3; //异或校验正确标志位
-  reg flag4; //校验正确标志位
+  reg flag4; //开头校验正确标志位
   reg [2:0] cnt_7;//存储时间计数器
   reg [1:0] cnt_2;//GPS存储校验ASKII码计数器
   //进入数据移位储存
@@ -29,6 +29,7 @@ module data_compare (
       data_reg<={data_reg[39:0],po_data};
     else
       data_reg<=data_reg;
+
   //开头正确存储时间标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -39,6 +40,7 @@ module data_compare (
       flag1 <= 1'd1;
     else
       flag1 <= flag1;
+
   //存储时间计数器
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -49,6 +51,7 @@ module data_compare (
       cnt_7 <= cnt_7+1;
     else
       cnt_7 <= cnt_7;
+
   //data_reg1 时间数据存储寄存器
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -57,6 +60,7 @@ module data_compare (
       data_reg1<=data_reg;
     else
       data_reg1<=data_reg1;
+
   //异或校验开始结束标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -67,6 +71,7 @@ module data_compare (
       flag2 <= 1'd0;
     else
       flag2 <= flag2;
+
   //异或校验正确标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -77,6 +82,7 @@ module data_compare (
       flag3 <= 1'd1;
     else
       flag3 <= 1'd0;
+
   //异或校验十六进制结果
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -89,6 +95,7 @@ module data_compare (
       data_jy <= data_jy^po_data;
     else
       data_jy <= data_jy;
+
   //GPS存储校验ASKII码计数器
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -101,6 +108,7 @@ module data_compare (
       cnt_2 <= cnt_2+1;
     else
       cnt_2 <= cnt_2;
+
   //GPS校验数据存储ASKII码
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
@@ -109,7 +117,8 @@ module data_compare (
       data_jysj<={data_jysj[7:0],po_data};
     else
       data_jysj<=data_jysj;
-  //ASKII码转换为十六进制
+
+  //高位ASKII码转换为十六进制
   always@(*)
   begin
     if (!sys_rst_n)
@@ -154,6 +163,8 @@ module data_compare (
       endcase
     end
   end
+
+  //低位ASKII码转换为十六进制
   always@(*)
   begin
     if (!sys_rst_n)
@@ -199,7 +210,8 @@ module data_compare (
     end
   end
   assign data_jysj3={data_jysj1,data_jysj2};
-  //校验正确标志位
+
+  //开头校验正确标志位
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       flag4<= 1'd0;
@@ -209,6 +221,7 @@ module data_compare (
       flag4<= 1'd1;
     else
       flag4<= flag4;
+
   //时间数据输出 每位 ASKII码转换为十进制
   reg [7:0] shi_shiwei;
   reg [7:0] shi_gewei;
@@ -244,14 +257,14 @@ module data_compare (
       miao_shiwei<=miao_shiwei;
       miao_gewei<=miao_gewei;
     end
+
   //时间数据输出
   always @(posedge sys_clk or negedge sys_rst_n)
     if (!sys_rst_n)
       data <= 20'd0;
     else if (shi_shiwei>=1&&shi_gewei>=6)
       data <=(shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1)-20'd240000;
-    else if(shi_gewei<16)
-      data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
     else
-      data<=data;
+      data <=shi_shiwei*100000+(shi_gewei+8)*10000+fen_shiwei*1000+fen_gewei*100+miao_shiwei*10+miao_gewei*1;
+
 endmodule
